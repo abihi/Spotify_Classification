@@ -34,30 +34,37 @@ def norm(x):
 
 normed_train_data = norm(X_train)
 normed_test_data = norm(X_test)
+
 normed_test_final = norm(testset)
 
 import xgboost as xgb
 from xgboost import XGBClassifier
 from sklearn import  metrics   #Additional scklearn functions
-from sklearn.model_selection import GridSearchCV   #Perforing grid search
+from sklearn.model_selection import GridSearchCV   #Performing grid search
 
-def modelfit(alg, dtrain, targets,useTrainCV=True, cv_folds=5, early_stopping_rounds=50):
+def modelfit(alg, dtrain, targets, final_pred, useTrainCV=True, cv_folds=5, early_stopping_rounds=50):
 
     if useTrainCV:
         xgb_param = alg.get_xgb_params()
         xgtrain = xgb.DMatrix(dtrain.values, label=targets.values)
-        cvresult = xgb.cv(xgb_param, xgtrain, num_boost_round=alg.get_params()['n_estimators'],
+        cvresult = xgb.cv(xgb_param, xgtrain, num_boost_round=alg.get_params()['n_estimators'], stratified=False,
             nfold=cv_folds, metrics='auc', early_stopping_rounds=early_stopping_rounds, verbose_eval=None)
         alg.set_params(n_estimators=cvresult.shape[0])
+        #print(cvresult.shape[0])
 
     #Fit the algorithm on the data
     alg.fit(dtrain, targets, eval_metric='auc')
 
     #Predict training set:
     dtrain_predictions = alg.predict(dtrain)
+    final_predictions = alg.predict(final_pred)
     dtrain_predprob = alg.predict_proba(dtrain)[:,1]
 
-    print(alg.get_booster())
+    prediction_string = ""
+    for i in final_predictions:
+        prediction_string += str(i)
+
+    print(prediction_string)
 
     #Print model report:
     print ("\nModel Report")
@@ -73,28 +80,19 @@ def modelfit(alg, dtrain, targets,useTrainCV=True, cv_folds=5, early_stopping_ro
 xgb_model = XGBClassifier(
      learning_rate =0.1,
      n_estimators=1000,
-     max_depth=5,
-     min_child_weight=1,
-     gamma=0,
-     subsample=0.8,
-     colsample_bytree=0.8,
-     objective= 'binary:logistic',
+     max_depth=6,
+     min_child_weight=3,
+     gamma=0.2,
+     subsample=0.45,
+     colsample_bytree=0.35,
+     objective= 'binary:hinge',
      nthread=4,
+     reg_alpha=0.05,
      scale_pos_weight=1,
      seed=27
     )
-modelfit(xgb_model, normed_train_data, y_train)
+modelfit(xgb_model, normed_train_data, y_train, normed_test_final)
 
-param_test1 = {
- 'max_depth':range(3,10,2),
- 'min_child_weight':range(1,6,2)
-}
-gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=140, max_depth=5,
- min_child_weight=1, gamma=0, subsample=0.8, colsample_bytree=0.8,
- objective= 'binary:logistic', nthread=4, scale_pos_weight=1, seed=27),
- param_grid = param_test1, scoring='roc_auc',n_jobs=4,iid=False, cv=5)
-gsearch1.fit(normed_train_data, y_train)
-gsearch1.grid_scores_, gsearch1.best_params_, gsearch1.best_score_
 
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold

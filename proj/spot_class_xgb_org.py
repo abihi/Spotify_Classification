@@ -38,7 +38,20 @@ normed_test_final = norm(testset)
 
 #Change model here to your own
 from xgboost import XGBClassifier
-xgb_model = XGBClassifier(n_estimators=100, max_depth=4, learning_rate=0.1, subsample=0.5)
+xgb_model = XGBClassifier(
+    learning_rate =0.01,
+    n_estimators=5000,
+    max_depth=6,
+    min_child_weight=3,
+    gamma=0.2,
+    subsample=0.45,
+    colsample_bytree=0.35,
+    objective= 'binary:logistic',
+    nthread=4,
+    reg_alpha=0.05,
+    scale_pos_weight=1,
+    seed=27
+)
 history = xgb_model.fit(normed_train_data, y_train)
 
 from sklearn.model_selection import StratifiedKFold
