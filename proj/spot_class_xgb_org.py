@@ -39,7 +39,7 @@ normed_test_final = norm(testset)
 #Change model here to your own
 from xgboost import XGBClassifier
 xgb_model = XGBClassifier(
-    learning_rate =0.01,
+    learning_rate =0.001,
     n_estimators=5000,
     max_depth=6,
     min_child_weight=3,
@@ -54,18 +54,21 @@ xgb_model = XGBClassifier(
 )
 history = xgb_model.fit(normed_train_data, y_train)
 
+#Predictions on final test set
+final_predictions = xgb_model.predict(normed_test_final)
+prediction_string = ""
+for i in final_predictions:
+    prediction_string += str(i)
+print(prediction_string)
+
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
 
 kfold = StratifiedKFold(n_splits=10, random_state=7)
 results = cross_val_score(xgb_model, normed_train_data, y_train, cv=kfold)
-print("Accuracy: %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))
+print("Accuracy (CV): %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))
 
 #Predictions on test set
-#predictions = xgb_model.predict(normed_test_data)
-#Predictions on final test set
-#preds_final = xgb_model.predict(normed_test_final)
-#print(preds_final)
-
-#from sklearn.metrics import accuracy_score
-#print(accuracy_score(y_test,predictions))
+predictions = xgb_model.predict(normed_test_data)
+from sklearn.metrics import accuracy_score
+print("Accuracy (test set): %.2f%%" % accuracy_score(y_test,predictions))
