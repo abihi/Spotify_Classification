@@ -69,11 +69,10 @@ results = cross_val_score(xgb_model, normed_train_data, y_train, cv=kfold)
 print("Accuracy (CV): %.2f%% (%.2f%%)" % (results.mean()*100, results.std()*100))
 
 param_test1 = {
- 'max_depth':range(1,16,1),
- 'min_child_weight':range(1,10,1)
+ 'gamma':[i/10.0 for i in range(0,5)]
 }
-gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=200, max_depth=6,
- min_child_weight=3, gamma=0, subsample=0.8, colsample_bytree=0.8,
+gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=200, max_depth=10,
+ min_child_weight=1, gamma=0, subsample=0.8, colsample_bytree=0.8,
  objective= 'binary:logistic', nthread=4, scale_pos_weight=1, seed=27),
  param_grid = param_test1, scoring='accuracy',n_jobs=4,iid=False, cv=5)
 gsearch1.fit(normed_train_data, y_train)
