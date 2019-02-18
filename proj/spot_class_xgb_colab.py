@@ -48,7 +48,7 @@ xgb_model = XGBClassifier(
     subsample=0.7,
     colsample_bytree=0.5,
     objective= 'binary:logistic',
-    nthread=4,
+    nthread=1,
     reg_alpha=0.05,
     scale_pos_weight=1,
     seed=27
@@ -73,7 +73,7 @@ param_test1 = {
 }
 gsearch1 = GridSearchCV(estimator = XGBClassifier( learning_rate =0.1, n_estimators=200, max_depth=10,
  min_child_weight=1, gamma=0.06, subsample=0.7, colsample_bytree=0.5, reg_alpha=0.05,
- objective= 'binary:logistic', nthread=4, scale_pos_weight=2, seed=27),
+ objective= 'binary:logistic', nthread=1, scale_pos_weight=2, seed=27),
  param_grid = param_test1, scoring='accuracy',n_jobs=4,iid=False, cv=5)
 gsearch1.fit(normed_train_data, y_train)
 print("Cv results: ", gsearch1.cv_results_, "Best params: ", gsearch1.best_params_, "Best score: ", gsearch1.best_score_)

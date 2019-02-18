@@ -22,78 +22,78 @@ dataset = pd.read_csv("training_data.csv")
 testset = pd.read_csv("songs_to_classify.csv")
 
 y = dataset.label
-X = dataset.drop(['label'], axis=1)
+X = dataset.drop(['label', 'time_signature'], axis=1)
+testset = testset.drop(['time_signature'], axis=1)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=0.2)
+X_train, X_test, y_train, y_test = train_test_split(X, y,test_size=0)
 
-corr = X.corr()
-
-#Basic correlation matrix
-plt.matshow(corr)
-
-# Generate a mask for the upper triangle
-mask = np.zeros_like(corr, dtype=np.bool)
-mask[np.triu_indices_from(mask)] = True
-
-# Set up the matplotlib figure
-f, ax = plt.subplots(figsize=(11, 9))
-
-# Generate a custom diverging colormap
-cmap = sns.diverging_palette(220, 10, as_cmap=True)
-
-# Draw the heatmap with the mask and correct aspect ratio
-sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
-            square=True, linewidths=.5, cbar_kws={"shrink": .5})
-plt.show()
-
-#Visualize data (search for correlations)
-sns.pairplot(X[X.columns.values], diag_kind="kde")
-plt.show()
-
-train_labels = tf.concat([1 - y_train, y_train], 0)
-test_labels = tf.concat([1 - y_test, y_test], 0)
+#train_labels = tf.concat([1 - y_train, y_train], 0)
+#test_labels = tf.concat([1 - y_test, y_test], 0)
 
 train_stats = X.describe()
 train_stats = train_stats.transpose()
-#print train_stats['mean']
-#print train_stats['std']
 
 def norm(x):
   return (x - train_stats['mean']) / train_stats['std']
 
 normed_train_data = norm(X_train)
 normed_test_data = norm(X_test)
-
-print(len(X_train.keys()))
+normed_test_final = norm(testset)
 
 def build_model():
   model = keras.Sequential([
-    layers.Dense(64, activation=tf.nn.relu, input_shape=[len(X_train.keys())]),
-    layers.Dense(64, activation=tf.nn.relu),
-    layers.Dense(2, activation=tf.nn.softmax)
+    layers.Dense(10, activation=tf.nn.relu, input_shape=[len(X_train.keys())]),
+    layers.Dense(10, activation=tf.nn.relu),
+    layers.Dense(1, activation=tf.nn.sigmoid)
   ])
 
   optimizer = tf.keras.optimizers.SGD(lr=0.01)
 
-  model.compile(loss='sparse_categorical_crossentropy',
+  model.compile(loss='binary_crossentropy',
                 optimizer=optimizer,
                 metrics=['accuracy'])
   return model
 
-model = build_model()
-model.summary()
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+# Random seed for reproducibility
+seed = 7
+np.random.seed(seed)
 
-EPOCHS = 1000
+# Define 10-fold cross validation
+kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
+cvscores = []
+highest_score = 0
+for train, test in kfold.split(normed_train_data, y_train):
+    # create model
+    model = build_model()
+    model.summary()
 
-# The patience parameter is the amount of epochs to check for improvement
-early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+    EPOCHS = 1000
 
-history = model.fit(normed_train_data, y_train, epochs=EPOCHS, validation_split = 0.2,
-                    verbose=0, callbacks=[early_stop, PrintDot()])
+    # The patience parameter is the amount of epochs to check for improvement
+    early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
-hist = pd.DataFrame(history.history)
-hist['epoch'] = history.epoch
-#print(hist.keys())
+    # Fit the model
+    history = model.fit(normed_train_data.iloc[train], y_train.iloc[train], epochs=EPOCHS, validation_split = 0.2,
+                        verbose=0, callbacks=[early_stop, PrintDot()])
+
+    # Capture model training history
+    #hist = pd.DataFrame(history.history)
+    #hist['epoch'] = history.epoch
+    #print(hist.keys())
+
+    # Evaluate the model
+    scores = model.evaluate(normed_train_data.iloc[test], y_train.iloc[test], verbose=0)
+    print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+    cvscores.append(scores[1] * 100)
+
+    #Predict final
+    if scores[1] > highest_score:
+        final_predictions = model.predict(normed_test_final)
+        highest_score = scores[1]
+
+print("%.2f%% (+/- %.2f%%)" % (np.mean(cvscores), np.std(cvscores)))
+
 
 def plot_history(history):
   hist = pd.DataFrame(history.history)
@@ -112,13 +112,10 @@ def plot_history(history):
 #plot_history(history)
 #plt.show()
 
-predictions = model.predict(normed_test_data)
-
-preds = [0]*len(predictions)
-
-for i in range(len(predictions)):
-    if predictions[i][1] > 0.5:
-        preds[i] = 1
-
-from sklearn.metrics import accuracy_score
-print("\naccuracy: ", accuracy_score(y_test,preds))
+prediction_string = ""
+for i in final_predictions:
+    if i <= 0.5:
+        prediction_string += str(0)
+    else:
+        prediction_string += str(1)
+print(prediction_string)
